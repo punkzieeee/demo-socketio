@@ -72,13 +72,13 @@ public class SocketIOController {
     }
 
     @OnEvent("JOIN_ROOM")
-    public void onJoinRoom(SocketIOClient client, MessageDto payload) {
+    public void onJoinRoom(SocketIOClient client, MessageDto payload, AckRequest ackRequest) {
         String room = payload.getRoom();
         connectedClient = server.getRoomOperations(room).getClients().size();
         switch (connectedClient) {
             case 0:
                 client.joinRoom(room);
-                client.sendEvent(SignalType.CREATED.toString(), "Room " + room + " has been created!");
+                ackRequest.sendAckData("Room " + room + " has been created!");
                 log.info("Room " + room + " has been created!");
                 log.info(clientId + " has joined room " + room);
                 users.put(clientId, room);
@@ -86,15 +86,15 @@ public class SocketIOController {
                 break;
             case 1:
                 client.joinRoom(room);
+                ackRequest.sendAckData(clientId + " has joined room " + room);
                 client.sendEvent(SignalType.JOINED.name(), 
                     new MessageDto(MessageType.SERVER, clientId + " has joined room " + room));
                 log.info(clientId + " has joined room " + room);
                 users.put(clientId, room);
-                client.sendEvent(SignalType.SET_CALLER.name(), rooms.get(room));
                 break;
             default:
-                client.sendEvent(SignalType.FULL_ROOM.name(), 
-                    new MessageDto(MessageType.SERVER, "Full room!"));
+                ackRequest.sendAckData("Room " + room + " has already full!");
+                client.leaveRoom(room);
                 log.info("Full room!");
                 break;
         }
@@ -103,53 +103,18 @@ public class SocketIOController {
     }
     
     @OnEvent("LEAVE_ROOM")
-    public void onLeaveRoom(SocketIOClient client, MessageDto payload) {
+    public void onLeaveRoom(SocketIOClient client, MessageDto payload, AckRequest ackRequest) {
         client.leaveRoom(payload.getRoom());
+        ackRequest.sendAckData("You have leave room " + payload.getRoom());
         log.info(client.getSessionId() + " is left room " + payload.getRoom());
         log.info("{}: {}", SignalType.LEAVE_ROOM, client.getSessionId());
     }
 
     @OnEvent("SEND_MESSAGE")
-    public void onSendMessage(SocketIOClient client, MessageDto payload) {
+    public void onSendMessage(SocketIOClient client, MessageDto payload, AckRequest ackRequest) {
         service.sendEvent(payload.getRoom(), SignalType.GET_MESSAGE.toString(), client, payload.getMessage());
+        ackRequest.sendAckData("Message sent!");
         log.info(client.getSessionId() + " send message: " + payload.getMessage());
         log.info("{}: {}", client.getSessionId(), payload.getMessage());
-    }
-    
-    @OnEvent("READY")
-    public void onReady(SocketIOClient client, MessageDto payload, AckRequest ackRequest) {
-        client.getNamespace().getBroadcastOperations().sendEvent(SignalType.READY.name(), 
-            payload.getRoom());
-        log.info(client.getSessionId() + " ready in room " + payload.getRoom());
-        log.info("{}: {}", SignalType.READY, client.getSessionId());
-    }
-    
-    @OnEvent("RINGING")
-    public void onRinging(SocketIOClient client, MessageDto payload) {
-        String room = payload.getRoom();
-        Object sdp = payload.getSdp(); // session description, adanya di client
-        client.getNamespace().getRoomOperations(room).sendEvent(SignalType.RINGING.toString(), sdp);
-        log.info(client.getSessionId() + " ringing!");
-        log.info("{}: {}", SignalType.RINGING, client.getSessionId());
-        log.info("sdp: {}", sdp);
-    }
-    
-    @OnEvent("ANSWER")
-    public void onAnswer(SocketIOClient client, MessageDto payload) {
-        String room = payload.getRoom();
-        Object sdp = payload.getSdp(); // session description, adanya di client
-        client.getNamespace().getRoomOperations(room).sendEvent(SignalType.ANSWER.toString(), sdp);
-        log.info(client.getSessionId() + " answered the call!");
-        log.info("{}: {}", SignalType.ANSWER, client.getSessionId());
-        log.info("sdp: {}", sdp);
-    }
-    
-    @OnEvent("WAIT_ROOM")
-    public void onWait(SocketIOClient client, MessageDto payload) {
-        String room = payload.getRoom();
-        client.getNamespace().getRoomOperations(room).sendEvent(SignalType.WAIT_ROOM.toString(), payload);
-        log.info(client.getSessionId() + " waiting in room " + room);
-        log.info("{}: {}", SignalType.WAIT_ROOM, client.getSessionId());
-        log.info("Room: {}", room);
     }
 }
