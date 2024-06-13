@@ -11,14 +11,8 @@ public class MessageDto {
     private SignalType signalType;
     private String message;
     private String room;
-    private Object sdp;
         
     public MessageDto() {
-    }
-
-    public MessageDto(String room, Object sdp) {
-        this.room = room;
-        this.sdp = sdp;
     }
     
     public MessageDto(String room) {
