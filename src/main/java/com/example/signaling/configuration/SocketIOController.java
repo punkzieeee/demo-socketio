@@ -112,9 +112,14 @@ public class SocketIOController {
 
     @OnEvent("SEND_MESSAGE")
     public void onSendMessage(SocketIOClient client, MessageDto payload, AckRequest ackRequest) {
-        service.sendEvent(payload.getRoom(), SignalType.GET_MESSAGE.toString(), client, payload.getMessage());
-        ackRequest.sendAckData("Message sent!");
-        log.info(client.getSessionId() + " send message: " + payload.getMessage());
-        log.info("{}: {}", client.getSessionId(), payload.getMessage());
+        if (users.get(client.getSessionId().toString()).equals("")) {
+            ackRequest.sendAckData(new MessageDto(MessageType.SERVER, "You need to join any room first!"));
+            log.info("ID {} need to join any room first!", client.getSessionId());
+        } else {
+            service.sendEvent(payload.getRoom(), SignalType.GET_MESSAGE.toString(), client, payload.getMessage());
+            ackRequest.sendAckData("Message sent!");
+            log.info(client.getSessionId() + " send message: " + payload.getMessage());
+            log.info("{}: {}", client.getSessionId(), payload.getMessage());
+        }
     }
 }
