@@ -122,4 +122,16 @@ public class SocketIOController {
             log.info("{}: {}", client.getSessionId(), payload.getMessage());
         }
     }
+
+    @OnEvent("ACK_EVENT")
+    public void demoAckEvent(SocketIOClient client, AckRequest ackRequest) {
+        String str = client.getHandshakeData().getSingleUrlParam("angka");
+        if (str.matches("[0-9]+")) {
+            int angka = Integer.parseInt(str);
+            String gage = angka % 2 == 0 ? "genap" : "ganjil";
+            ackRequest.sendAckData("Angka " + gage);
+        } else {
+            ackRequest.sendAckData("Isi param bukan angka!");
+        }
+    }
 }
