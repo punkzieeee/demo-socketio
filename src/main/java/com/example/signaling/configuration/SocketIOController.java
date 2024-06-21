@@ -49,6 +49,7 @@ public class SocketIOController {
     public void onDisconnect(SocketIOClient client) {
         clientId = client.getSessionId().toString();
         String room = users.get(clientId);
+        clientId = client.getSessionId().toString();
         if (!Objects.isNull(room)) {
             log.info("Client disconnected: {}", clientId);
             users.remove(clientId);
@@ -60,6 +61,7 @@ public class SocketIOController {
     @OnEvent("JOIN_ROOM")
     public void onJoinRoom(SocketIOClient client, MessageDto payload, AckRequest ackRequest) {
         String room = payload.getRoom();
+        clientId = client.getSessionId().toString();
         connectedClient = server.getRoomOperations(room).getClients().size();
         switch (connectedClient) {
             case 0:
@@ -89,6 +91,7 @@ public class SocketIOController {
     
     @OnEvent("LEAVE_ROOM")
     public void onLeaveRoom(SocketIOClient client, MessageDto payload, AckRequest ackRequest) {
+        clientId = client.getSessionId().toString();
         client.leaveRoom(payload.getRoom());
         users.replace(clientId, "");
         ackRequest.sendAckData("You have leave room " + payload.getRoom());
@@ -98,6 +101,7 @@ public class SocketIOController {
 
     @OnEvent("SEND_MESSAGE")
     public void onSendMessage(SocketIOClient client, MessageDto payload, AckRequest ackRequest) {
+        clientId = client.getSessionId().toString();
         if (users.get(clientId).equals("")) {
             ackRequest.sendAckData(new MessageDto(MessageType.SERVER, "You need to join any room first!"));
             log.info("ID {} need to join any room first!", client.getSessionId());
