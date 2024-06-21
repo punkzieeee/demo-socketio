@@ -3,8 +3,6 @@ package com.example.signaling.configuration;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -32,24 +30,12 @@ public class SocketIOController {
     private int connectedClient;
     private String clientId;
     private static final Map<String, String> users = new HashMap<>();
-    private static final Map<String, String> rooms = new HashMap<>();
 
     public SocketIOController(SocketIOServer server, SocketIOService service) throws Exception {
         this.server = server;
         this.service = service;
         server.addListeners(this);
-        Future<Void> serverStart = server.startAsync();
-        
-        if (serverStart.isCancelled() || serverStart.cancel(true)) {
-            // restart 3 kali
-            int attempt = 1;
-            while (attempt < Integer.MAX_VALUE) {
-                log.info("Retry: {}", attempt);
-                boolean restart = server.startAsync().await(1, TimeUnit.MINUTES);
-                if (restart == true) break;
-                else attempt++;
-            }
-        }
+        server.start();
     }
 
     @OnConnect
@@ -81,8 +67,7 @@ public class SocketIOController {
                 ackRequest.sendAckData("Room " + room + " has been created!");
                 log.info("Room " + room + " has been created!");
                 log.info(clientId + " has joined room " + room);
-                users.put(clientId, room);
-                rooms.put(room, clientId);
+                users.replace(clientId, room);
                 break;
             case 1:
                 client.joinRoom(room);
@@ -90,7 +75,7 @@ public class SocketIOController {
                 client.sendEvent(SignalType.JOINED.name(), 
                     new MessageDto(MessageType.SERVER, clientId + " has joined room " + room));
                 log.info(clientId + " has joined room " + room);
-                users.put(clientId, room);
+                users.replace(clientId, room);
                 break;
             default:
                 ackRequest.sendAckData("Room " + room + " has already full!");
@@ -105,6 +90,7 @@ public class SocketIOController {
     @OnEvent("LEAVE_ROOM")
     public void onLeaveRoom(SocketIOClient client, MessageDto payload, AckRequest ackRequest) {
         client.leaveRoom(payload.getRoom());
+        users.replace(clientId, "");
         ackRequest.sendAckData("You have leave room " + payload.getRoom());
         log.info(client.getSessionId() + " is left room " + payload.getRoom());
         log.info("{}: {}", SignalType.LEAVE_ROOM, client.getSessionId());
@@ -112,7 +98,7 @@ public class SocketIOController {
 
     @OnEvent("SEND_MESSAGE")
     public void onSendMessage(SocketIOClient client, MessageDto payload, AckRequest ackRequest) {
-        if (users.get(client.getSessionId().toString()).equals("")) {
+        if (users.get(clientId).equals("")) {
             ackRequest.sendAckData(new MessageDto(MessageType.SERVER, "You need to join any room first!"));
             log.info("ID {} need to join any room first!", client.getSessionId());
         } else {
